@@ -1,0 +1,411 @@
+// 游戏注册表：id → 元数据 + 组件懒加载 + 难度配置
+export const gameRegistry = {
+  'digit-span': {
+    name: '数字回溯',
+    icon: '🧠',
+    description: '系统用语音朗读一串数字，你需要倒序复述出来。训练你的工作记忆广度。',
+    rules: [
+      '系统将用语音依次朗读一串数字',
+      '仔细聆听并记住数字的顺序',
+      '在输入框中倒序输入你听到的数字',
+      '按回车键或点击确认按钮提交答案',
+    ],
+    component: () => import('../games/DigitSpan.vue'),
+    difficulty: {
+      label: '序列长度',
+      min: 3,
+      max: 9,
+      default: 4,
+      step: 1,
+    },
+  },
+  'digit-memory': {
+    name: '数字记忆测试',
+    icon: '🔢',
+    description: '短暂显示一串数字后消失，凭记忆输入。从1位开始，逐次递增，挑战你的数字记忆极限！',
+    rules: [
+      '屏幕上短暂显示一串数字，下方有倒计时进度条',
+      '在数字消失前尽可能记住它',
+      '数字消失后，在输入框中输入你记住的数字',
+      '答对则下一轮位数+1，答错游戏结束',
+      '位数越高记忆时间越长，无上限挑战',
+    ],
+    component: () => import('../games/DigitMemory.vue'),
+    result: {
+      scoreLabel: '最高位数',
+      totalLabel: '本次成绩',
+      accuracyLabel: '最佳记录',
+      accuracyUnit: 'level',
+      suffix: ' 位',
+      bestMetric: 'score',
+      achievement: { type: 'level', threshold: 6 },
+    },
+    difficulty: {
+      label: '记忆速度',
+      options: [
+        { label: '正常 (2s+0.5s/位)', value: 1 },
+        { label: '快速 (1.5s+0.35s/位)', value: 2 },
+        { label: '挑战 (1s+0.25s/位)', value: 3 },
+      ],
+      default: 1,
+    },
+  },
+  'spatial-memory': {
+    name: '空间记忆',
+    icon: '📋',
+    description: '3×3网格依次亮起格子，记住顺序并复现。格子可重复亮起，逐关递增，答错扣命，无限挑战！',
+    rules: [
+      '3×3方格网格中，系统依次点亮格子（允许重复）',
+      '记住格子亮起的顺序',
+      '点亮结束后，按相同顺序点击格子',
+      '答对进入下一关（亮起次数+1），答错扣一条命并重试本关',
+      '生命耗尽游戏结束，显示最高纪录与本次成绩',
+    ],
+    component: () => import('../games/SpatialMemory.vue'),
+    result: {
+      scoreLabel: '最高关卡',
+      totalLabel: '本次成绩',
+      accuracyLabel: '最佳记录',
+      accuracyUnit: 'level',
+      suffix: ' 关',
+      bestMetric: 'score',
+      achievement: { type: 'level', threshold: 6 },
+    },
+    difficulty: {
+      label: '难度模式',
+      options: [
+        { label: '简单 (最多亮7次·3❤️)', value: 3 },
+        { label: '普通 (最多亮9次·3❤️)', value: 4 },
+        { label: '困难 (最多亮9次·1❤️)', value: 5 },
+      ],
+      default: 3,
+    },
+  },
+  'n-back': {
+    name: 'N-Back',
+    icon: '🔢',
+    description: '动物 emoji 逐个出现，判断当前是否与倒数第 N 个相同。经典的 N-Back 工作记忆训练范式。',
+    rules: [
+      '屏幕上会依次出现动物 emoji',
+      '你需要判断当前动物是否与倒数第 N 个动物相同',
+      '相同点击"相同"按钮，不同点击"不同"按钮',
+      'N 值越大，难度越高',
+    ],
+    component: () => import('../games/NBack.vue'),
+    difficulty: {
+      label: 'N 值',
+      min: 1,
+      max: 4,
+      default: 2,
+      step: 1,
+    },
+  },
+  'brain-shift': {
+    name: 'Brain Shift Overdrive',
+    icon: '⚡',
+    description: '四张规则卡片位置固定，根据刺激出现位置应用对应规则。考验认知灵活性！',
+    rules: [
+      '屏幕上有四张规则卡片，位置固定不变',
+      '左上：数字 偶数→是，奇数→否',
+      '右上：字母 元音→是，辅音→否',
+      '左下：数字 奇数→是，偶数→否',
+      '右下：字母 辅音→是，元音→否',
+      '字母+数字组合刺激出现在某张卡片上，按该卡片规则判断',
+    ],
+    component: () => import('../games/BrainShiftOverdrive.vue'),
+    difficulty: {
+      label: '刺激间隔',
+      options: [
+        { label: '慢速 (3s)', value: 3000 },
+        { label: '正常 (2s)', value: 2000 },
+        { label: '快速 (1s)', value: 1000 },
+      ],
+      default: 2000,
+    },
+  },
+  'stroop': {
+    name: 'Stroop 测验',
+    icon: '🛑',
+    description: '文字颜色与字义冲突时，选择字体颜色而非文字内容。例：蓝色字体的"红" → 正确答案是蓝色。',
+    rules: [
+      '屏幕显示一个彩色汉字，字体颜色可能与字义不一致',
+      '忽略文字内容，根据字体颜色点击下方对应颜色按钮',
+      '例如：字体为蓝色的"红"字 → 点击蓝色按钮',
+      '尽量快速准确地做出选择',
+    ],
+    component: () => import('../games/Stroop.vue'),
+    difficulty: {
+      label: '轮次数',
+      options: [
+        { label: '12 轮', value: 12 },
+        { label: '18 轮', value: 18 },
+        { label: '24 轮', value: 24 },
+      ],
+      default: 18,
+    },
+  },
+  'go-no-go': {
+    name: 'Go/No-Go',
+    icon: '🚦',
+    description: '看到字母 P 快速响应（空格键或点击），看到字母 R 则抑制冲动不做操作。训练反应抑制能力。',
+    rules: [
+      '屏幕中央会出现字母 P 或 R',
+      '看到 P → 立即按空格键或点击按钮',
+      '看到 R → 不要做任何操作',
+      '注意：既要快速响应，又要避免误触',
+    ],
+    component: () => import('../games/GoNoGo.vue'),
+    difficulty: {
+      label: '反应时限',
+      options: [
+        { label: '慢速 (2.0s)', value: 2000 },
+        { label: '正常 (1.5s)', value: 1500 },
+        { label: '快速 (1.0s)', value: 1000 },
+      ],
+      default: 1500,
+    },
+  },
+  'dccs': {
+    name: 'DCCS 卡片分类',
+    icon: '🎨',
+    description: '先按颜色分类卡片，中段切换为按形状分类。支持2-4种颜色形状。测试认知灵活性和规则切换能力。',
+    rules: [
+      '屏幕显示彩色形状卡片，从2-4种颜色和形状中随机选取',
+      '前半段：按颜色分类（如红色点左边，蓝色点右边）',
+      '后半段：切换为按形状分类（如圆形点左边，星形点右边）',
+      '规则切换时会闪烁提示，请尽快适应新规则',
+    ],
+    component: () => import('../games/DCCS.vue'),
+    difficulty: {
+      label: '颜色/形状数量',
+      options: [
+        { label: '2 种 (红蓝·圆星)', value: 2 },
+        { label: '3 种 (红蓝绿·圆星三角)', value: 3 },
+        { label: '4 种 (红蓝绿黄·圆星三角方块)', value: 4 },
+      ],
+      default: 2,
+    },
+    extraOptions: {
+      rounds: {
+        label: '轮次数',
+        options: [
+          { label: '12 轮', value: 12 },
+          { label: '20 轮', value: 20 },
+          { label: '28 轮', value: 28 },
+        ],
+        default: 20,
+      },
+    },
+  },
+  'schulte-grid': {
+    name: '舒尔特表',
+    icon: '🎯',
+    description: '方格中数字随机排列，从1开始按顺序依次点击。支持4×4到7×7，限时随大小自动调整。',
+    rules: [
+      '方格中随机排列1到N的数字（N=格子数）',
+      '从1开始，按顺序依次点击到N',
+      '点击正确有反馈，错误或重复点击会闪烁提示',
+      '限时随格子大小自动调整，超时或完成显示结果',
+    ],
+    component: () => import('../games/SchulteGrid.vue'),
+    result: {
+      scoreLabel: '完成数',
+      totalLabel: '总数',
+      accuracyLabel: '最快用时',
+      accuracyUnit: 'time',
+      bestMetric: 'time',
+      achievement: { type: 'complete' },
+    },
+    difficulty: {
+      label: '表格大小',
+      options: [
+        { label: '4×4 (16格)', value: 4 },
+        { label: '5×5 (25格)', value: 5 },
+        { label: '6×6 (36格)', value: 6 },
+        { label: '7×7 (49格)', value: 7 },
+      ],
+      default: 5,
+    },
+    extraOptions: {
+      time: {
+        label: '时间限制',
+        options: [
+          { label: '宽裕 (1.5x)', value: 1.5 },
+          { label: '正常 (1x)', value: 1.0 },
+          { label: '紧张 (0.7x)', value: 0.7 },
+        ],
+        default: 1.0,
+      },
+    },
+  },
+  'tower-of-hanoi': {
+    name: '汉诺塔',
+    icon: '🗼',
+    description: '将所有圆盘从起点柱移到目标柱，小盘不能压大盘。规划每一步，用最少步数完成。',
+    rules: [
+      '三根柱子，圆盘从大到小叠放（大盘在下）',
+      '点击柱子选中顶部圆盘，再点击目标柱移动',
+      '每次只能移动一个圆盘，小盘不能压在大盘上',
+      '全部圆盘移到目标柱获胜，步数越接近最优越好',
+    ],
+    component: () => import('../games/TowerOfHanoi.vue'),
+    result: {
+      scoreLabel: '移动步数',
+      totalLabel: '最优步数',
+      accuracyLabel: '效率',
+    },
+    difficulty: {
+      label: '圆盘数量',
+      options: [
+        { label: '3 个圆盘', value: 3 },
+        { label: '4 个圆盘', value: 4 },
+        { label: '5 个圆盘', value: 5 },
+        { label: '6 个圆盘', value: 6 },
+      ],
+      default: 3,
+    },
+  },
+  'risk-decision': {
+    name: '风险决策',
+    icon: '⚖️',
+    description: '每轮在稳妥收益与高风险高收益之间权衡，做出最优选择，积累金币。',
+    rules: [
+      '每轮出现两个选项：稳妥(100%小收益) 或 冒险(概率性大收益)',
+      '冒险选项的成功概率和收益倍率每轮随机变化',
+      '权衡期望值与风险，选择你的策略',
+      '累计金币越多，说明决策能力越强',
+    ],
+    component: () => import('../games/RiskDecision.vue'),
+    result: {
+      scoreLabel: '金币',
+      totalLabel: '总轮次',
+      accuracyLabel: '平均收益',
+      accuracyUnit: 'coin',
+      achievement: { type: 'coin', threshold: 15 },
+    },
+    difficulty: {
+      label: '轮次数',
+      options: [
+        { label: '10 轮', value: 10 },
+        { label: '15 轮', value: 15 },
+        { label: '20 轮', value: 20 },
+      ],
+      default: 15,
+    },
+  },
+  'visual-search': {
+    name: '视觉搜索',
+    icon: '🔍',
+    description: '在大量相似图形中快速找出唯一不同的那一个，训练注意力和视觉搜索速度。',
+    rules: [
+      '网格中大部分是相同的 emoji',
+      '只有一个与众不同的目标',
+      '快速点击目标，点错会抖动提示',
+      '网格越大、异类越隐蔽，难度越高',
+    ],
+    component: () => import('../games/VisualSearch.vue'),
+    difficulty: {
+      label: '网格大小',
+      options: [
+        { label: '5×5', value: 5 },
+        { label: '6×6', value: 6 },
+        { label: '7×7', value: 7 },
+      ],
+      default: 5,
+    },
+    extraOptions: {
+      rounds: {
+        label: '题目数量',
+        options: [
+          { label: '8 题', value: 8 },
+          { label: '12 题', value: 12 },
+          { label: '16 题', value: 16 },
+        ],
+        default: 8,
+      },
+    },
+  },
+  'stop-signal': {
+    name: '停止信号',
+    icon: '🚫',
+    description: 'Go 刺激出现后准备响应，部分试次会突现停止信号——考验在动作启动后突然叫停的抑制能力。',
+    rules: [
+      '屏幕出现「→」Go 刺激，按空格键或点击响应',
+      '部分试次中，Go 出现后短暂延迟会突现「🚫 停止」',
+      '看到停止信号必须抑制响应，不能按键',
+      '停止信号出现越晚越难抑制',
+    ],
+    component: () => import('../games/StopSignal.vue'),
+    difficulty: {
+      label: '停止延迟',
+      options: [
+        { label: '长 (350ms·易)', value: 350 },
+        { label: '中 (250ms)', value: 250 },
+        { label: '短 (150ms·难)', value: 150 },
+      ],
+      default: 250,
+    },
+  },
+  'memory-match': {
+    name: '卡片配对',
+    icon: '🃏',
+    description: '所有卡片正面朝下，翻两张找相同配对。记住位置，用最少的步数消除全部卡片。',
+    rules: [
+      '卡片正面朝下排列，点击翻开',
+      '每次翻开两张：相同则配对成功，不同则自动翻回',
+      '记住已翻卡片的位置',
+      '用最少步数配对所有卡片',
+    ],
+    component: () => import('../games/MemoryMatch.vue'),
+    result: {
+      scoreLabel: '配对对数',
+      totalLabel: '总对数',
+      accuracyLabel: '最少步数',
+      accuracyUnit: 'moves',
+      bestMetric: 'moves',
+      achievement: { type: 'moves', threshold: 1.2 },
+    },
+    difficulty: {
+      label: '卡片对数',
+      options: [
+        { label: '6 对 (12张)', value: 6 },
+        { label: '8 对 (16张)', value: 8 },
+        { label: '10 对 (20张)', value: 10 },
+      ],
+      default: 6,
+    },
+  },
+  'timed-match': {
+    name: '限时翻牌配对',
+    icon: '⏳',
+    description: '经典翻牌配对 + 限时挑战！记住卡片位置快速消除，超时即失败。',
+    rules: [
+      '卡片正面朝下排列，点击翻开',
+      '每次翻开两张：相同配对成功，不同自动翻回',
+      '倒计时条显示剩余时间，越到后面越紧张',
+      '在时限内配对所有卡片即获胜',
+    ],
+    component: () => import('../games/TimedMatch.vue'),
+    result: {
+      scoreLabel: '配对对数',
+      totalLabel: '总对数',
+      accuracyLabel: '最快用时',
+      accuracyUnit: 'time',
+      bestMetric: 'time',
+      achievement: { type: 'complete' },
+    },
+    difficulty: {
+      label: '卡片对数',
+      options: [
+        { label: '6 对 (60s)', value: 6 },
+        { label: '8 对 (80s)', value: 8 },
+        { label: '10 对 (100s)', value: 10 },
+      ],
+      default: 6,
+    },
+  },
+}
+
+export function getGame(id) {
+  return gameRegistry[id] || null
+}
