@@ -8,11 +8,13 @@
       </div>
       <div class="dc-bins-preview" :class="'cols-' + numTypes">
         <span
-          v-for="c in activeColors"
-          :key="c.name"
+          v-for="bin in bins"
+          :key="bin.key"
           class="dc-bin"
-          :style="{ borderColor: c.hex, color: c.hex }"
-        >{{ c.colorLabel }}</span>
+          :style="{ borderColor: bin.hex, color: bin.hex }"
+        >
+          <span class="dc-bin-shape">{{ bin.shapeLabel }}</span>
+        </span>
       </div>
       <p class="dc-hint">颜色与形状会独立随机组合，按当前规则分类</p>
     </div>
@@ -44,7 +46,7 @@
           :style="binStyle(bin)"
           @click="classify(bin)"
         >
-          {{ currentRule === 'color' ? bin.colorLabel : bin.shapeLabel }}
+          <span class="dc-bin-shape">{{ bin.shapeLabel }}</span>
         </button>
       </div>
 
@@ -103,7 +105,8 @@ const numTypes = computed(() => {
   return Math.min(4, Math.max(2, n))
 })
 const totalRounds = computed(() => props.extraOptions.rounds || 20)
-const switchAt = computed(() => Math.floor(totalRounds.value / 2))
+// 每个阶段的轮数：每 总轮数/4 轮切换一次规则
+const phaseLen = computed(() => Math.max(1, Math.floor(totalRounds.value / 4)))
 
 const activeColors = ref([])
 const activeShapes = ref([])
@@ -120,8 +123,16 @@ const answers = ref([])
 let phaseTimer = null
 let nextTimer = null
 
+// 分类按钮固定显示「颜色+形状」组合：每个按钮绑定一种随机颜色和一种随机形状，
+// 外观与文字整局不变，规则切换只改变匹配维度
 const bins = computed(() =>
-  currentRule.value === 'color' ? activeColors.value : activeShapes.value
+  activeColors.value.map((c, i) => ({
+    key: c.name + '-' + activeShapes.value[i].name,
+    hex: c.hex,
+    colorLabel: c.colorLabel,
+    shape: activeShapes.value[i].shape,
+    shapeLabel: activeShapes.value[i].shapeLabel,
+  }))
 )
 
 const previewCard = computed(() => ({
@@ -148,11 +159,13 @@ function randomItem(arr) {
 }
 
 function binStyle(bin) {
-  if (currentRule.value === 'color') {
-    return { borderColor: bin.hex, color: bin.hex }
-  }
-  // 形状规则：颜色是干扰维度，所有分类桶保持中性外观
-  return { borderColor: 'rgba(255,255,255,0.22)', color: '#e2e8f0' }
+  // 按钮的颜色与文字始终固定为各自绑定的颜色
+  return { borderColor: bin.hex, color: bin.hex }
+}
+
+// 当前轮所属规则：按阶段交替 color → shape → color → shape
+function ruleForRound(r) {
+  return Math.floor((r - 1) / phaseLen.value) % 2 === 0 ? 'color' : 'shape'
 }
 
 watch(() => props.preview, (p) => {
@@ -205,8 +218,10 @@ function nextRound() {
     return
   }
 
-  if (round.value === switchAt.value + 1) {
-    currentRule.value = 'shape'
+  // 每 总轮数/4 轮切换一次规则（color → shape → color → shape 循环）
+  const rule = ruleForRound(round.value)
+  if (rule !== currentRule.value) {
+    currentRule.value = rule
     phaseChanged.value = true
     clearTimeout(phaseTimer)
     phaseTimer = setTimeout(() => { phaseChanged.value = false }, 2000)
@@ -292,6 +307,13 @@ function classify(bin) {
   font-size: 0.85rem;
   font-weight: 600;
   cursor: default;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  line-height: 1.25;
+  white-space: nowrap;
 }
 
 .dc-hint { color: #64748b; font-size: 0.8rem; margin-top: 12px; }
@@ -340,7 +362,7 @@ function classify(bin) {
 .dc-bins.cols-4 .dc-bin { min-width: 75px; }
 
 .dc-bins .dc-bin {
-  padding: 12px 16px;
+  padding: 8px 16px;
   cursor: pointer;
   transition: transform 0.1s, box-shadow 0.1s;
 }
