@@ -23,7 +23,10 @@
       <div class="ds-speaker" :class="{ speaking: isSpeaking }">
         🔊
       </div>
-      <p class="ds-instruction">{{ isSpeaking ? '仔细听...' : '请倒序输入你听到的数字' }}</p>
+      <p class="ds-instruction">{{ isSpeaking ? (visualFallback ? '请记住屏幕上的数字...' : '仔细听...') : '请倒序输入你听到的数字' }}</p>
+      <div v-if="isSpeaking && visualFallback" class="ds-visual-sequence">
+        {{ sequence.join('  ') }}
+      </div>
 
       <!-- 输入区 -->
       <div class="ds-input-area" v-if="!isSpeaking && !feedback">
@@ -77,6 +80,7 @@ const isSpeaking = ref(false)
 const userInput = ref('')
 const feedback = ref(null)       // { correct, answer, user }
 const inputEl = ref(null)
+const visualFallback = ref(false)
 
 // Only auto-start when not in preview mode
 watch(() => props.preview, (p) => {
@@ -116,8 +120,10 @@ async function nextRound() {
 
   // Read digits via TTS
   isSpeaking.value = true
+  visualFallback.value = false
   await speakDigits(seq)
   isSpeaking.value = false
+  visualFallback.value = false
 
   await nextTick()
   inputEl.value?.focus()
@@ -126,8 +132,12 @@ async function nextRound() {
 function speakDigits(digits) {
   return new Promise((resolve) => {
     if (!window.speechSynthesis) {
-      // Fallback: show digits briefly
-      setTimeout(resolve, digits.length * 800 + 200)
+      // Fallback: show digits visually so the game still works without TTS
+      visualFallback.value = true
+      setTimeout(() => {
+        visualFallback.value = false
+        resolve()
+      }, digits.length * 800 + 200)
       return
     }
     let idx = 0
@@ -203,6 +213,15 @@ function submitAnswer() {
   color: #94a3b8;
   font-size: 0.95rem;
   margin: 0 0 20px;
+}
+
+.ds-visual-sequence {
+  font-size: 2rem;
+  font-weight: 800;
+  letter-spacing: 0.3em;
+  color: #f1f5f9;
+  margin: 0 0 20px;
+  min-height: 2.8rem;
 }
 
 .ds-input-area {

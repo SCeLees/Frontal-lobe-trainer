@@ -40,7 +40,7 @@
       </div>
 
       <div v-if="showFeedback" class="nb-feedback" :class="lastCorrect ? 'correct' : 'wrong'">
-        {{ lastCorrect ? '✓ 正确!' : '✗ 错误' }}
+        {{ timedOut ? '⏱ 超时' : (lastCorrect ? '✓ 正确!' : '✗ 错误') }}
       </div>
 
       <div class="nb-progress">
@@ -77,7 +77,10 @@ const showStimulus = ref(false)
 const skipping = ref(false)
 const showFeedback = ref(false)
 const lastCorrect = ref(false)
+const timedOut = ref(false)
 const stimuliCount = ref(0)
+
+const RESPONSE_WINDOW = 2000
 
 const displayRound = computed(() => {
   const n = nValue.value
@@ -102,7 +105,10 @@ function onKeydown(e) {
   if (e.key === '2' || e.key === 'ArrowRight') judge('diff')
 }
 onMounted(() => window.addEventListener('keydown', onKeydown))
-onUnmounted(() => window.removeEventListener('keydown', onKeydown))
+onUnmounted(() => {
+  window.removeEventListener('keydown', onKeydown)
+  clearTimeout(judgmentTimer)
+})
 
 onMounted(() => {
   if (!props.preview) startGame()
@@ -141,18 +147,21 @@ async function startGame() {
       continue
     }
 
-    const result = await waitForJudgment()
+    timedOut.value = false
+    const result = await waitForJudgment(RESPONSE_WINDOW)
     showFeedback.value = true
 
     const expected = seq[i] === seq[i - nValue.value]
     const answer = result === 'same'
-    lastCorrect.value = answer === expected
+    timedOut.value = result === null
+    lastCorrect.value = !timedOut.value && answer === expected
     if (lastCorrect.value) { score.value++; sounds.correct() } else { sounds.wrong() }
 
     await delay(600)
     showStimulus.value = false
     showFeedback.value = false
     lastCorrect.value = false
+    timedOut.value = false
     await delay(400)
   }
 
@@ -162,16 +171,24 @@ async function startGame() {
 }
 
 let judgmentResolver = null
+let judgmentTimer = null
 function judge(answer) {
-  if (judgmentResolver) {
-    judgmentResolver(answer)
-    judgmentResolver = null
-  }
+  if (state.value !== 'playing' || !judgmentResolver) return
+  judgmentResolver(answer)
+  judgmentResolver = null
+  clearTimeout(judgmentTimer)
 }
 
-function waitForJudgment() {
+function waitForJudgment(timeout) {
   return new Promise((resolve) => {
     judgmentResolver = resolve
+    clearTimeout(judgmentTimer)
+    judgmentTimer = setTimeout(() => {
+      if (judgmentResolver) {
+        judgmentResolver(null)
+        judgmentResolver = null
+      }
+    }, timeout)
   })
 }
 

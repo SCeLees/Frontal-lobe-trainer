@@ -79,14 +79,14 @@ let lock = false
 
 const resultIcon = computed(() => {
   if (!won.value) return '⏰'
-  const r = moves.value / (pairsCount.value * 2)
+  const r = moves.value / pairsCount.value
   if (r <= 1.2) return '🏆'
   if (r <= 1.8) return '🎯'
   return '💪'
 })
 const resultText = computed(() => {
   if (!won.value) return '时间到！'
-  const r = moves.value / (pairsCount.value * 2)
+  const r = moves.value / pairsCount.value
   if (r <= 1.2) return '超强记忆！'
   if (r <= 1.8) return '完成！'
   return '完成，继续练习'

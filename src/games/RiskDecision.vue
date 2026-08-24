@@ -30,16 +30,19 @@
       <div v-if="state === 'playing'" class="rd-question">
         <p class="rd-q-title">选择你的策略：</p>
         <div class="rd-choices">
-          <button class="rd-choice safe" @click="choose('safe')">
+          <button class="rd-choice safe" :disabled="busy" @click="choose('safe')">
             <span class="rd-label-text">稳妥</span>
             <span class="rd-value">+{{ safeGain }} 金币</span>
             <span class="rd-note">100% 获得</span>
           </button>
-          <button class="rd-choice risky" @click="choose('risky')">
+          <button class="rd-choice risky" :disabled="busy" @click="choose('risky')">
             <span class="rd-label-text">冒险</span>
             <span class="rd-value">+{{ riskyGain }} 金币</span>
             <span class="rd-note">{{ riskPct }}% 概率</span>
           </button>
+        </div>
+        <div v-if="lastOutcome" class="rd-outcome" :class="lastOutcome.type">
+          {{ lastOutcome.text }}
         </div>
       </div>
 
@@ -71,6 +74,8 @@ const safeGain = ref(10)
 const riskyGain = ref(0)
 const riskPct = ref(50)
 const riskyFails = ref(0)
+const busy = ref(false)
+const lastOutcome = ref(null)
 
 const resultIcon = computed(() => {
   const avg = score.value / totalRounds.value
@@ -106,6 +111,8 @@ function startGame() {
   round.value = 0
   score.value = 0
   riskyFails.value = 0
+  busy.value = false
+  lastOutcome.value = null
   state.value = 'playing'
   nextRound()
 }
@@ -117,6 +124,8 @@ function nextRound() {
     emit('done', { score: score.value, total: totalRounds.value, riskyFails: riskyFails.value, difficulty: props.difficulty })
     return
   }
+  busy.value = false
+  lastOutcome.value = null
   // Generate a risky option: 40-80% chance of 2-5x multiplier
   riskPct.value = 40 + Math.floor(Math.random() * 41)  // 40-80
   const mult = 2 + Math.floor(Math.random() * 4)       // 2-5
@@ -124,18 +133,24 @@ function nextRound() {
 }
 
 function choose(type) {
-  if (state.value !== 'playing') return
+  if (state.value !== 'playing' || busy.value) return
+  busy.value = true
   sounds.flip()
   if (type === 'safe') {
     score.value += safeGain.value
+    lastOutcome.value = { type: 'safe', text: `稳妥获得 +${safeGain.value} 金币` }
   } else {
     if (Math.random() * 100 < riskPct.value) {
       score.value += riskyGain.value
+      sounds.correct()
+      lastOutcome.value = { type: 'success', text: `冒险成功！获得 +${riskyGain.value} 金币` }
     } else {
       riskyFails.value++
+      sounds.wrong()
+      lastOutcome.value = { type: 'fail', text: `冒险失败，本轮 +0 金币` }
     }
   }
-  nextRound()
+  setTimeout(nextRound, 850)
 }
 </script>
 
@@ -216,6 +231,24 @@ function choose(type) {
 .rd-choice.safe .rd-value { color: #34d399; }
 .rd-choice.risky .rd-value { color: #fbbf24; }
 .rd-note { font-size: 0.72rem; color: #94a3b8; }
+
+.rd-choice:disabled {
+  opacity: 0.55;
+  cursor: default;
+  transform: none;
+}
+
+.rd-outcome {
+  margin-top: 14px;
+  padding: 10px 18px;
+  border-radius: 12px;
+  font-size: 0.95rem;
+  font-weight: 600;
+  display: inline-block;
+}
+.rd-outcome.safe    { background: rgba(52,211,153,0.14); color: #34d399; }
+.rd-outcome.success { background: rgba(251,191,36,0.14); color: #fbbf24; }
+.rd-outcome.fail    { background: rgba(248,113,113,0.14); color: #f87171; }
 
 .rd-result { margin-top: 8px; }
 .rd-result-icon { font-size: 2.5rem; }

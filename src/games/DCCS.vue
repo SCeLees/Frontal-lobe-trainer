@@ -2,19 +2,19 @@
   <div class="dc-game">
     <!-- 预览 -->
     <div v-if="preview && state === 'idle'" class="dc-center">
-      <div class="dc-rule-label">按 颜色 分类</div>
-      <div class="dc-card-preview" :style="{ background: colorShapes[0].hex }">
-        <span class="dc-card-shape">{{ colorShapes[0].shape }}</span>
+      <div class="dc-rule-label">示例：按 颜色 分类</div>
+      <div class="dc-card-preview" :style="{ background: previewCard.hex }">
+        <span class="dc-card-shape">{{ previewCard.shape }}</span>
       </div>
       <div class="dc-bins-preview" :class="'cols-' + numTypes">
         <span
-          v-for="cs in colorShapes"
-          :key="cs.name"
+          v-for="c in activeColors"
+          :key="c.name"
           class="dc-bin"
-          :style="{ borderColor: cs.hex, color: cs.hex }"
-        >{{ cs.colorLabel }}</span>
+          :style="{ borderColor: c.hex, color: c.hex }"
+        >{{ c.colorLabel }}</span>
       </div>
-      <p class="dc-hint">按规则将卡片拖入对应分类</p>
+      <p class="dc-hint">颜色与形状会独立随机组合，按当前规则分类</p>
     </div>
 
     <!-- 空闲 -->
@@ -38,18 +38,18 @@
 
       <div class="dc-bins" :class="'cols-' + numTypes">
         <button
-          v-for="cs in colorShapes"
-          :key="cs.name"
+          v-for="bin in bins"
+          :key="bin.key"
           class="dc-bin"
-          :style="binStyle(cs)"
-          @click="classify(cs)"
+          :style="binStyle(bin)"
+          @click="classify(bin)"
         >
-          {{ currentRule === 'color' ? cs.colorLabel : cs.shapeLabel }}
+          {{ currentRule === 'color' ? bin.colorLabel : bin.shapeLabel }}
         </button>
       </div>
 
       <div v-if="showFeedback" class="dc-feedback" :class="lastCorrect ? 'correct' : 'wrong'">
-        {{ lastCorrect ? '✓ 正确!' : '✗ 错误' }}
+        {{ lastCorrect ? '✓ 正确!' : `✗ 错误，应按${currentRule === 'color' ? '颜色' : '形状'}分类` }}
       </div>
 
       <div class="dc-stats">正确：{{ score }} / {{ round - 1 }}</div>
@@ -79,18 +79,34 @@ const props = defineProps({
 
 const emit = defineEmits(['done'])
 
-// Color-shape pairs
+// 颜色与形状分成两个独立维度，每一局随机抽取 N 种，再随机组合成卡片
 const ALL_COLORS = [
-  { name: 'red',    hex: '#ef4444', colorLabel: '🔴 红', shapeLabel: '● 圆', shape: '●' },
-  { name: 'blue',   hex: '#3b82f6', colorLabel: '🔵 蓝', shapeLabel: '★ 星', shape: '★' },
-  { name: 'green',  hex: '#22c55e', colorLabel: '🟢 绿', shapeLabel: '▲ 三角', shape: '▲' },
-  { name: 'yellow', hex: '#eab308', colorLabel: '🟡 黄', shapeLabel: '■ 方块', shape: '■' },
+  { name: 'red',    hex: '#ef4444', colorLabel: '🔴 红' },
+  { name: 'blue',   hex: '#3b82f6', colorLabel: '🔵 蓝' },
+  { name: 'green',  hex: '#22c55e', colorLabel: '🟢 绿' },
+  { name: 'yellow', hex: '#eab308', colorLabel: '🟡 黄' },
+  { name: 'purple', hex: '#a855f7', colorLabel: '🟣 紫' },
+  { name: 'orange', hex: '#f97316', colorLabel: '🟠 橙' },
 ]
 
-const numTypes = computed(() => props.difficulty || 2)
-const colorShapes = computed(() => ALL_COLORS.slice(0, numTypes.value))
+const ALL_SHAPES = [
+  { name: 'circle',   shape: '●', shapeLabel: '● 圆' },
+  { name: 'star',     shape: '★', shapeLabel: '★ 星' },
+  { name: 'triangle', shape: '▲', shapeLabel: '▲ 三角' },
+  { name: 'square',   shape: '■', shapeLabel: '■ 方块' },
+  { name: 'diamond',  shape: '◆', shapeLabel: '◆ 菱形' },
+  { name: 'heart',    shape: '♥', shapeLabel: '♥ 心形' },
+]
+
+const numTypes = computed(() => {
+  const n = props.difficulty || 2
+  return Math.min(4, Math.max(2, n))
+})
 const totalRounds = computed(() => props.extraOptions.rounds || 20)
 const switchAt = computed(() => Math.floor(totalRounds.value / 2))
+
+const activeColors = ref([])
+const activeShapes = ref([])
 
 const state = ref('idle')
 const round = ref(0)
@@ -101,41 +117,83 @@ const showFeedback = ref(false)
 const lastCorrect = ref(false)
 const phaseChanged = ref(false)
 const answers = ref([])
+let phaseTimer = null
+let nextTimer = null
 
-function binStyle(cs) {
-  if (currentRule.value === 'color') {
-    return { borderColor: cs.hex, color: cs.hex }
+const bins = computed(() =>
+  currentRule.value === 'color' ? activeColors.value : activeShapes.value
+)
+
+const previewCard = computed(() => ({
+  hex: activeColors.value[0]?.hex || '#ef4444',
+  shape: activeShapes.value[0]?.shape || '●',
+}))
+
+function shuffle(arr) {
+  const a = [...arr]
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1))
+    ;[a[i], a[j]] = [a[j], a[i]]
   }
-  // Shape rule: all bins same style
-  return { borderColor: 'rgba(255,255,255,0.2)', color: '#94a3b8' }
+  return a
+}
+
+function pickSets() {
+  activeColors.value = shuffle(ALL_COLORS).slice(0, numTypes.value)
+  activeShapes.value = shuffle(ALL_SHAPES).slice(0, numTypes.value)
+}
+
+function randomItem(arr) {
+  return arr[Math.floor(Math.random() * arr.length)]
+}
+
+function binStyle(bin) {
+  if (currentRule.value === 'color') {
+    return { borderColor: bin.hex, color: bin.hex }
+  }
+  // 形状规则：颜色是干扰维度，所有分类桶保持中性外观
+  return { borderColor: 'rgba(255,255,255,0.22)', color: '#e2e8f0' }
 }
 
 watch(() => props.preview, (p) => {
   if (!p && state.value === 'idle') startGame()
 })
 
+// 规则页切换难度时同步刷新预览所用的颜色/形状集合
+watch(() => props.difficulty, () => {
+  if (state.value === 'idle') pickSets()
+})
+
 // 键盘支持：数字键 1-N 选择分类桶
 function onKeydown(e) {
-  if (state.value !== 'playing') return
+  if (state.value !== 'playing' || showFeedback.value) return
   const idx = parseInt(e.key) - 1
-  if (idx >= 0 && idx < numTypes.value) {
-    classify(colorShapes.value[idx])
+  if (idx >= 0 && idx < bins.value.length) {
+    classify(bins.value[idx])
   }
 }
 onMounted(() => window.addEventListener('keydown', onKeydown))
-onUnmounted(() => window.removeEventListener('keydown', onKeydown))
+onUnmounted(() => {
+  window.removeEventListener('keydown', onKeydown)
+  clearTimeout(phaseTimer)
+  clearTimeout(nextTimer)
+})
 
 onMounted(() => {
+  pickSets()
   if (!props.preview) startGame()
 })
 
 function startGame() {
+  clearTimeout(phaseTimer)
+  clearTimeout(nextTimer)
   score.value = 0
   round.value = 0
   currentRule.value = 'color'
   answers.value = []
   state.value = 'playing'
   phaseChanged.value = false
+  pickSets()
   nextRound()
 }
 
@@ -150,27 +208,30 @@ function nextRound() {
   if (round.value === switchAt.value + 1) {
     currentRule.value = 'shape'
     phaseChanged.value = true
-    setTimeout(() => { phaseChanged.value = false }, 2000)
+    clearTimeout(phaseTimer)
+    phaseTimer = setTimeout(() => { phaseChanged.value = false }, 2000)
   }
 
   showFeedback.value = false
-  const cs = colorShapes.value[Math.floor(Math.random() * numTypes.value)]
-  currentCard.value = { hex: cs.hex, shape: cs.shape }
+  const color = randomItem(activeColors.value)
+  const shape = randomItem(activeShapes.value)
+  currentCard.value = { hex: color.hex, shape: shape.shape }
 }
 
-function classify(cs) {
-  if (showFeedback.value) return
+function classify(bin) {
+  if (showFeedback.value || state.value !== 'playing') return
 
   const correct = currentRule.value === 'color'
-    ? cs.hex === currentCard.value.hex
-    : cs.shape === currentCard.value.shape
+    ? bin.hex === currentCard.value.hex
+    : bin.shape === currentCard.value.shape
 
   lastCorrect.value = correct
   answers.value.push(correct)
   showFeedback.value = true
   if (correct) { score.value++; sounds.correct() } else { sounds.wrong() }
 
-  setTimeout(nextRound, 700)
+  clearTimeout(nextTimer)
+  nextTimer = setTimeout(nextRound, 700)
 }
 </script>
 
@@ -216,7 +277,7 @@ function classify(cs) {
   gap: 10px;
   justify-content: center;
   flex-wrap: wrap;
-  max-width: 360px;
+  max-width: 380px;
   margin: 0 auto;
 }
 .dc-bins-preview.cols-2 .dc-bin { min-width: 100px; }

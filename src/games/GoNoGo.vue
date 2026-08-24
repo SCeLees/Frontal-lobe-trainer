@@ -116,8 +116,8 @@ async function nextRound() {
   showStimulus.value = false
   await delay(300 + Math.random() * 400)
 
-  // Random P or R (~50% each)
-  currentLetter.value = Math.random() < 0.5 ? 'P' : 'R'
+  // Go 刺激占约70%，制造优势反应冲动；No-Go 占约30%
+  currentLetter.value = Math.random() < 0.7 ? 'P' : 'R'
   showStimulus.value = true
 
   // Wait for response or timeout

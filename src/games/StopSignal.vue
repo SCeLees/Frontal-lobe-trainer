@@ -1,9 +1,9 @@
 <template>
-  <div class="ss-game" @click.stop>
+  <div class="ss-game">
     <!-- 预览 -->
     <div v-if="preview && state === 'idle'" class="ss-center">
       <div class="ss-fixation">→</div>
-      <p class="ss-preview-text">Go 出现时按键响应，偶尔突现「停止」必须抑制</p>
+      <p class="ss-preview-text">Go 出现时按键响应；出现「停止」后必须抑制</p>
     </div>
 
     <!-- 空闲 -->
@@ -13,12 +13,12 @@
     </div>
 
     <!-- 游戏中 -->
-    <div v-else-if="state === 'playing'" class="ss-center" tabindex="0" ref="stageEl">
+    <div v-else-if="state === 'playing'" class="ss-center" tabindex="0" ref="stageEl" @keydown.space.prevent="onGo">
       <div class="ss-round">第 {{ round }} / {{ totalRounds }} 轮</div>
 
       <div class="ss-display">
-        <div v-if="showStimulus && !showFeedback" class="ss-go" :class="{ stopped: stopped }">
-          {{ stopped ? '🚫 停止！' : '→' }}
+        <div v-if="showStimulus && !showFeedback" class="ss-go" :class="{ stopped }">
+          {{ stopped ? '🚫' : '→' }}
         </div>
         <div v-else-if="!showFeedback" class="ss-fixation">+</div>
         <div v-if="showFeedback" class="ss-feedback" :class="feedbackClass">
@@ -40,6 +40,7 @@
         <span class="ss-stat">✅ 响应 {{ hits }}</span>
         <span class="ss-stat">🛑 成功抑制 {{ stops }}</span>
         <span class="ss-stat">❌ 误触 {{ falseAlarms }}</span>
+        <span class="ss-stat">⏭ 遗漏 {{ misses }}</span>
       </div>
     </div>
 
@@ -51,7 +52,7 @@
 </template>
 
 <script setup>
-import { ref, computed, watch, onMounted, nextTick } from 'vue'
+import { ref, computed, watch, onMounted, onUnmounted, nextTick } from 'vue'
 import { sounds } from '../utils/sound.js'
 
 const props = defineProps({
@@ -61,7 +62,7 @@ const props = defineProps({
 
 const emit = defineEmits(['done'])
 
-// difficulty = stop delay in ms (shorter = harder)
+// difficulty = 停止信号延迟(ms)；延迟越长，动作准备越充分，抑制越难
 const stopDelay = computed(() => props.difficulty || 250)
 
 const state = ref('idle')
@@ -75,6 +76,7 @@ const feedbackClass = ref('')
 const hits = ref(0)
 const stops = ref(0)
 const falseAlarms = ref(0)
+const misses = ref(0)
 const responded = ref(false)
 const stageEl = ref(null)
 
@@ -86,10 +88,21 @@ onMounted(() => {
   if (!props.preview) startGame()
 })
 
+function onKeydown(e) {
+  if (state.value !== 'playing') return
+  if (e.code === 'Space' || e.key === ' ' || e.key === 'Spacebar') {
+    e.preventDefault()
+    onGo()
+  }
+}
+onMounted(() => window.addEventListener('keydown', onKeydown))
+onUnmounted(() => window.removeEventListener('keydown', onKeydown))
+
 async function startGame() {
   hits.value = 0
   stops.value = 0
   falseAlarms.value = 0
+  misses.value = 0
   round.value = 0
   state.value = 'playing'
   await nextTick()
@@ -101,7 +114,7 @@ async function nextRound() {
   round.value++
   if (round.value > totalRounds) {
     state.value = 'finished'
-    const total = hits.value + stops.value + falseAlarms.value
+    const total = hits.value + stops.value + falseAlarms.value + misses.value
     emit('done', { score: hits.value + stops.value, total, difficulty: props.difficulty })
     return
   }
@@ -117,51 +130,85 @@ async function nextRound() {
   showStimulus.value = true
 
   if (isStop) {
-    // After a delay, show stop signal
-    await delay(stopDelay.value)
-    if (responded.value) return  // already responded, handled below
-    stopped.value = true
-    showStimulus.value = false
-    showFeedback.value = true
-    falseAlarms.value++
-    sounds.wrong()
-    feedbackText.value = '✗ 应抑制未抑制'
-    feedbackClass.value = 'wrong'
-    await delay(900)
-    nextRound()
-  } else {
-    // No stop: wait for response
-    const result = await waitForResponse(1200)
-    showStimulus.value = false
-    showFeedback.value = true
-    if (result === 'go') {
-      hits.value++
-      sounds.correct()
-      feedbackText.value = '✓ 正确响应'
-      feedbackClass.value = 'correct'
-    } else {
-      falseAlarms.value++  // treated as miss
+    // Phase 1: before stop signal appears, any response is a false alarm.
+    const early = await waitForResponse(stopDelay.value)
+    if (early === 'go') {
+      showStimulus.value = false
+      showFeedback.value = true
+      falseAlarms.value++
       sounds.wrong()
-      feedbackText.value = '✗ 遗漏'
+      feedbackText.value = '✗ 停止信号出现前不应响应'
       feedbackClass.value = 'wrong'
+      await delay(800)
+      nextRound()
+      return
     }
-    await delay(700)
+
+    // Phase 2: stop signal is visible. Correct behavior is to withhold the response.
+    stopped.value = true
+    const late = await waitForResponse(900)
+
+    showStimulus.value = false
+    showFeedback.value = true
+    if (late === 'go') {
+      falseAlarms.value++
+      sounds.wrong()
+      feedbackText.value = '✗ 抑制失败（看到停止后仍响应）'
+      feedbackClass.value = 'wrong'
+    } else {
+      stops.value++
+      sounds.correct()
+      feedbackText.value = '✓ 成功抑制'
+      feedbackClass.value = 'correct'
+    }
+
+    await delay(800)
     nextRound()
+    return
   }
+
+  // No-stop trial: wait for the go response.
+  const result = await waitForResponse(1200)
+  showStimulus.value = false
+  showFeedback.value = true
+  if (result === 'go') {
+    hits.value++
+    sounds.correct()
+    feedbackText.value = '✓ 正确响应'
+    feedbackClass.value = 'correct'
+  } else {
+    misses.value++
+    sounds.wrong()
+    feedbackText.value = '✗ 遗漏'
+    feedbackClass.value = 'wrong'
+  }
+
+  await delay(700)
+  nextRound()
 }
 
 let respResolve = null
+let respTimer = null
+
 function onGo() {
-  if (responded.value || !showStimulus.value || stopped.value) return
+  if (state.value !== 'playing' || responded.value || !showStimulus.value) return
   responded.value = true
-  if (respResolve) { respResolve('go'); respResolve = null }
+  if (respResolve) {
+    respResolve('go')
+    respResolve = null
+    clearTimeout(respTimer)
+  }
 }
 
 function waitForResponse(timeout) {
   return new Promise((resolve) => {
     respResolve = resolve
-    setTimeout(() => {
-      if (respResolve) { respResolve(null); respResolve = null }
+    clearTimeout(respTimer)
+    respTimer = setTimeout(() => {
+      if (respResolve) {
+        respResolve(null)
+        respResolve = null
+      }
     }, timeout)
   })
 }
@@ -218,8 +265,15 @@ function delay(ms) {
   color: #f1f5f9;
   animation: popIn 0.15s ease-out;
 }
-.ss-go.stopped { display: none; }
+.ss-go.stopped {
+  color: #f87171;
+  animation: stopIn 0.15s ease-out;
+}
 @keyframes popIn {
+  from { transform: scale(0.6); opacity: 0; }
+  to   { transform: scale(1); opacity: 1; }
+}
+@keyframes stopIn {
   from { transform: scale(0.6); opacity: 0; }
   to   { transform: scale(1); opacity: 1; }
 }
@@ -258,8 +312,9 @@ function delay(ms) {
 
 .ss-stats {
   display: flex;
-  gap: 14px;
+  gap: 12px;
   justify-content: center;
+  flex-wrap: wrap;
 }
 .ss-stat { font-size: 0.78rem; color: #94a3b8; }
 

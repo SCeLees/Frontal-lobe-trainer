@@ -162,6 +162,10 @@ let toastUid = 0
 // 根据游戏配置初始化默认值
 watch(game, (g) => {
   if (!g) return
+  // 切换到另一个游戏时，回到规则页并强制重建游戏组件
+  phase.value = 'rules'
+  gameKey.value++
+  toasts.value = []
   difficulty.value = g.difficulty.default ?? g.difficulty.options?.[0]?.value ?? 4
   extraOptions.value = {}
   if (g.extraOptions) {

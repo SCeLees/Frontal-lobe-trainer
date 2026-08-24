@@ -144,9 +144,10 @@ const GAME_CATS = {
   'digit-span': 'working-memory', 'digit-memory': 'working-memory',
   'spatial-memory': 'working-memory', 'n-back': 'working-memory',
   'memory-match': 'working-memory', 'timed-match': 'working-memory',
+  'serial-addition': 'working-memory',
   'stroop': 'inhibitory-control', 'go-no-go': 'inhibitory-control',
-  'stop-signal': 'inhibitory-control',
-  'brain-shift': 'cognitive-flex', 'dccs': 'cognitive-flex',
+  'stop-signal': 'inhibitory-control', 'flanker': 'inhibitory-control',
+  'brain-shift': 'cognitive-flex', 'dccs': 'cognitive-flex', 'trail-making': 'cognitive-flex', 'task-switch': 'cognitive-flex',
   'schulte-grid': 'attention', 'visual-search': 'attention',
   'tower-of-hanoi': 'planning', 'risk-decision': 'planning',
 }
@@ -158,11 +159,15 @@ const GAME_META = {
   'n-back': { name: 'N-Back', icon: '🐾', color: '#3b82f6' },
   'memory-match': { name: '卡片配对', icon: '🃏', color: '#3b82f6' },
   'timed-match': { name: '限时翻牌配对', icon: '⏳', color: '#3b82f6' },
+  'serial-addition': { name: '连续加法', icon: '🧮', color: '#3b82f6' },
   'stroop': { name: 'Stroop 测验', icon: '🛑', color: '#ef4444' },
   'go-no-go': { name: 'Go/No-Go', icon: '🚦', color: '#ef4444' },
   'stop-signal': { name: '停止信号', icon: '🚫', color: '#ef4444' },
+  'flanker': { name: 'Flanker 任务', icon: '🏹', color: '#ef4444' },
   'brain-shift': { name: 'Brain Shift', icon: '⚡', color: '#8b5cf6' },
   'dccs': { name: 'DCCS 卡片分类', icon: '🎨', color: '#8b5cf6' },
+  'trail-making': { name: '交替连线', icon: '🔗', color: '#8b5cf6' },
+  'task-switch': { name: '任务切换', icon: '🔀', color: '#8b5cf6' },
   'schulte-grid': { name: '舒尔特表', icon: '🎯', color: '#22c55e' },
   'visual-search': { name: '视觉搜索', icon: '🔍', color: '#22c55e' },
   'tower-of-hanoi': { name: '汉诺塔', icon: '🗼', color: '#f59e0b' },
@@ -223,8 +228,8 @@ function valueOf(catKey) {
         return Math.min(100, r.score)
       }
       if (b.unit === 'moves') {
-        // 效率 = 最优步数(对数×2) / 实际步数
-        return Math.min(100, ((r.total * 2) / Math.max(1, r.moves)) * 100)
+        // 每次翻开两张算1步，最优步数 = 对数 = record.total
+        return Math.min(100, (r.total / Math.max(1, r.moves)) * 100)
       }
       if (b.unit === 'time') {
         // 完成度
@@ -272,7 +277,7 @@ const bestList = computed(() =>
 function metricToValue(unit, rec) {
   if (unit === 'coin') return Math.min(100, (rec.score / rec.total) * 5)
   if (unit === 'level') return Math.min(100, rec.score)
-  if (unit === 'moves') return Math.min(100, ((rec.total * 2) / Math.max(1, rec.moves)) * 100)
+  if (unit === 'moves') return Math.min(100, (rec.total / Math.max(1, rec.moves)) * 100)
   if (unit === 'time') return Math.min(100, (rec.score / rec.total) * 100)
   return rec.accuracy
 }

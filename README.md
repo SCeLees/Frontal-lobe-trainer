@@ -10,7 +10,7 @@ Built with **Vue 3 + Vite**, wrapped in a polished **dark glassmorphism** UI wit
 
 ## ✨ Features
 
-- **15 cognitive training games** across 5 core domains (see table below)
+- **19 cognitive training games** across 5 core domains (see table below)
 - **Domain filter tabs** — quickly browse games by cognitive area
 - **Game flow** — rule intro → difficulty selection → play → result card
 - **Training profile** (`/profile`) — ability radar chart, 84-day streak heatmap, per-game best records with recent-performance trend lines
@@ -24,13 +24,15 @@ Built with **Vue 3 + Vite**, wrapped in a polished **dark glassmorphism** UI wit
 
 | Domain | Games |
 |---|---|
-| Working Memory | Digit Span, Digit Memory Test, Spatial Memory, N-Back, Memory Match, Timed Match |
-| Inhibitory Control | Stroop Test, Go/No-Go, Stop Signal |
-| Cognitive Flexibility | Brain Shift Overdrive, DCCS Card Sorting |
+| Working Memory | Digit Span, Digit Memory Test, Spatial Memory, N-Back, Memory Match, Timed Match, Serial Addition |
+| Inhibitory Control | Stroop Test, Go/No-Go, Stop Signal, Flanker Task |
+| Cognitive Flexibility | Brain Shift Overdrive, DCCS Card Sorting, Trail Making (TMT-B), Task Switching |
 | Attention | Schulte Grid, Visual Search |
 | Planning & Decision | Tower of Hanoi, Risk Decision |
 
 Each game offers adjustable difficulty (sequence length, grid size, reaction window, timer, etc.).
+
+> DCCS Card Sorting now draws colors and shapes from independent pools and combines them randomly every round, so a red card is no longer always a circle. Flanker Task, Trail Making (TMT-B), Task Switching, and Serial Addition were added to cover inhibitory control, task switching, and working memory.
 
 ## 🧩 Tech Stack
 
@@ -98,7 +100,7 @@ vercel --prod
 ```
 src/
 ├── components/        # HeroSection, GameList, GameFilterTabs, Guide, ...
-├── games/             # 15 game components + registry.js (metadata & difficulty config)
+├── games/             # 19 game components + registry.js (metadata & difficulty config)
 ├── utils/             # storage.js, sound.js, achievements.js
 ├── views/             # HomePage, GameDetail, Profile, Achievements
 ├── router/index.js    # routes: / , /game/:id , /profile , /achievements
@@ -112,10 +114,10 @@ Best-record metrics adapt to each game type:
 
 | Metric | Games |
 |---|---|
-| Accuracy % | Digit Span, N-Back, Stroop, Go/No-Go, Stop Signal, Brain Shift, DCCS, Visual Search |
+| Accuracy % | Digit Span, N-Back, Stroop, Go/No-Go, Stop Signal, Flanker, Brain Shift, DCCS, Visual Search, Task Switch, Serial Addition |
 | Highest level / digits | Digit Memory, Spatial Memory |
 | Fewest moves | Memory Match |
-| Fastest time | Schulte Grid, Timed Match |
+| Fastest time | Schulte Grid, Timed Match, Trail Making |
 | Efficiency | Tower of Hanoi |
 | Average coins | Risk Decision |
 

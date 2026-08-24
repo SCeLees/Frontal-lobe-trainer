@@ -2,8 +2,8 @@
   <div class="vs-game">
     <!-- 预览 -->
     <div v-if="preview && state === 'idle'" class="vs-center">
-      <div class="vs-preview-grid">
-        <span v-for="i in 24" :key="i" class="vs-cell-p">🐱</span>
+      <div class="vs-preview-grid" :style="{ gridTemplateColumns: `repeat(${gridSize}, 1fr)` }">
+        <span v-for="i in gridSize * gridSize - 1" :key="i" class="vs-cell-p">🐱</span>
         <span class="vs-cell-p odd">🐶</span>
       </div>
       <p class="vs-hint">在相似图形中快速找出异类</p>
@@ -62,6 +62,7 @@ const gridSize = computed(() => props.difficulty || 5)
 const gridItems = ref([])
 const commonEmoji = ref('')
 const correct = ref(0)
+const roundLock = ref(false)
 
 const resultIcon = computed(() => (correct.value / totalRounds >= 0.8 ? '🏆' : '🎯'))
 const resultText = computed(() => (correct.value / totalRounds >= 0.8 ? '敏锐的视觉！' : '完成！'))
@@ -77,6 +78,7 @@ onMounted(() => {
 function startGame() {
   round.value = 0
   correct.value = 0
+  roundLock.value = false
   state.value = 'playing'
   nextRound()
 }
@@ -89,6 +91,7 @@ function nextRound() {
     return
   }
 
+  roundLock.value = false
   const total = gridSize.value * gridSize.value
   commonEmoji.value = EMOJIS[Math.floor(Math.random() * EMOJIS.length)]
   let oddEmoji
@@ -106,10 +109,11 @@ function nextRound() {
 }
 
 function clickCell(item, i) {
-  if (state.value !== 'playing') return
+  if (state.value !== 'playing' || roundLock.value || item.hit) return
 
   if (item.isOdd) {
     item.hit = true
+    roundLock.value = true
     correct.value++
     sounds.correct()
     setTimeout(nextRound, 500)
@@ -141,7 +145,7 @@ function clickCell(item, i) {
 
 .vs-preview-grid {
   display: grid;
-  grid-template-columns: repeat(5, 1fr);
+  grid-template-columns: repeat(5, 1fr); /* overridden inline by gridSize */
   gap: 6px;
   max-width: 260px;
   margin: 0 auto 12px;

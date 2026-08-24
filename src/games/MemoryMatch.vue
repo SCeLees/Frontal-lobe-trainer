@@ -68,7 +68,8 @@ const cards = ref([])
 const flipped = ref([])      // indices currently face-up
 const moves = ref(0)
 const matchedPairs = ref(0)
-const optimalMoves = computed(() => pairsCount.value * 2)
+// 每次翻开两张算 1 步；完美记忆时每对只需 1 步
+const optimalMoves = computed(() => pairsCount.value)
 let lock = false
 
 const resultIcon = computed(() => {

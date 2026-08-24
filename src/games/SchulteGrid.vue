@@ -2,8 +2,8 @@
   <div class="sg-game">
     <!-- 预览 -->
     <div v-if="preview && state === 'idle'" class="sg-center">
-      <div class="sg-grid-preview">
-        <div v-for="n in 25" :key="n" class="sg-cell-preview">{{ n }}</div>
+      <div class="sg-grid-preview" :style="{ gridTemplateColumns: `repeat(${gridSize}, 1fr)` }">
+        <div v-for="n in TOTAL" :key="n" class="sg-cell-preview">{{ n }}</div>
       </div>
       <p class="sg-hint">{{ gridSize }}×{{ gridSize }}舒尔特表·从1到{{ TOTAL }}依次点击</p>
     </div>
@@ -41,8 +41,8 @@
       <div v-if="state === 'finished'" class="sg-result">
         <div class="sg-result-icon">{{ resultIcon }}</div>
         <p class="sg-result-text">{{ resultText }}</p>
-        <div v-if="target > 25" class="sg-result-time">完成时间：{{ elapsed }}s</div>
-        <div v-else class="sg-result-progress">找到 {{ target - 1 }} / 25</div>
+        <div v-if="target > TOTAL" class="sg-result-time">完成时间：{{ elapsed }}s</div>
+        <div v-else class="sg-result-progress">找到 {{ target - 1 }} / {{ TOTAL }}</div>
       </div>
     </div>
   </div>
@@ -77,6 +77,7 @@ const timeLeft = ref(30)
 const elapsed = ref(0)
 const wrongClicks = ref(0)
 let timerInterval = null
+let startTime = 0
 
 const resultIcon = computed(() => {
   if (target.value > TOTAL.value) return '🏆'
@@ -120,10 +121,10 @@ function startGame() {
   elapsed.value = 0
   state.value = 'playing'
 
-  const start = Date.now()
+  startTime = Date.now()
   clearInterval(timerInterval)
   timerInterval = setInterval(() => {
-    const sec = Math.floor((Date.now() - start) / 1000)
+    const sec = Math.floor((Date.now() - startTime) / 1000)
     elapsed.value = sec
     timeLeft.value = Math.max(0, totalTime.value - sec)
     if (timeLeft.value <= 0) {
@@ -156,8 +157,10 @@ function clickNumber(n) {
 
     if (target.value > TOTAL.value) {
       clearInterval(timerInterval)
+      const seconds = Math.round(((Date.now() - startTime) / 1000) * 10) / 10
+      elapsed.value = seconds
       state.value = 'finished'
-      emit('done', { score: TOTAL.value, total: TOTAL.value, timeUsed: elapsed.value, wrongClicks: wrongClicks.value, difficulty: props.difficulty })
+      emit('done', { score: TOTAL.value, total: TOTAL.value, timeUsed: seconds, wrongClicks: wrongClicks.value, difficulty: props.difficulty })
     }
   } else {
     // Wrong click

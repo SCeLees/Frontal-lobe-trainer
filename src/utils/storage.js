@@ -14,6 +14,14 @@ function save(data) {
   localStorage.setItem(KEY, JSON.stringify(data))
 }
 
+// 以用户本地日期作为打卡键，避免 toISOString() 在 UTC 时区偏移导致的跨日错误
+function dateKey(d = new Date()) {
+  const y = d.getFullYear()
+  const m = String(d.getMonth() + 1).padStart(2, '0')
+  const day = String(d.getDate()).padStart(2, '0')
+  return `${y}-${m}-${day}`
+}
+
 /**
  * 记录一次游戏成绩
  * @param {string} gameId 游戏 id
@@ -31,8 +39,8 @@ export function recordGame(gameId, result) {
   data[gameId] = list
   save(data)
 
-  // 每日打卡
-  const today = new Date().toISOString().slice(0, 10)
+  // 每日打卡（按用户本地日期）
+  const today = dateKey()
   const profile = loadProfile()
   if (profile.streakDays[today] === undefined) {
     profile.streakDays[today] = true
@@ -94,7 +102,12 @@ export function getStreakDays() {
 // ---- Profile ----
 function loadProfile() {
   try {
-    return JSON.parse(localStorage.getItem(PROFILE_KEY)) || defaultProfile()
+    const parsed = JSON.parse(localStorage.getItem(PROFILE_KEY)) || {}
+    return {
+      ...defaultProfile(),
+      ...parsed,
+      streakDays: parsed.streakDays || {},
+    }
   } catch {
     return defaultProfile()
   }
@@ -116,8 +129,7 @@ export function getLast84Days() {
   for (let i = 83; i >= 0; i--) {
     const d = new Date(today)
     d.setDate(d.getDate() - i)
-    const key = d.toISOString().slice(0, 10)
-    days.push({ date: key, active: !!streak[key] })
+    days.push({ date: dateKey(d), active: !!streak[dateKey(d)] })
   }
   return days
 }
@@ -130,7 +142,7 @@ export function getCurrentStreak() {
   for (let i = 0; i < 365; i++) {
     const d = new Date(today)
     d.setDate(d.getDate() - i)
-    const key = d.toISOString().slice(0, 10)
+    const key = dateKey(d)
     if (streak[key]) {
       count++
     } else if (i > 0) {

@@ -17,10 +17,12 @@ export function matchesStandard(record, cond) {
       return record.total > 0 && (record.score / record.total) >= (cond.threshold || 15)
     case 'complete':
       return record.score === record.total
+    case 'clean':
+      return record.score === record.total && !record[cond.field]
     case 'level':
       return record.score >= (cond.threshold || 6)
     case 'moves':
-      return typeof record.moves === 'number' && record.moves <= record.total * 2 * (cond.threshold || 1.2)
+      return typeof record.moves === 'number' && record.moves <= record.total * (cond.threshold || 1.5)
     case 'accuracy':
     default:
       return record.accuracy >= (cond.threshold || 90)
@@ -32,7 +34,8 @@ function standardDesc(name, cond) {
   if (!cond) cond = { type: 'accuracy', threshold: 90 }
   switch (cond.type) {
     case 'coin': return `「${name}」平均收益 ≥ ${cond.threshold} 金币/轮`
-    case 'complete': return `在限时内完成「${name}」`
+    case 'complete': return `完成「${name}」全部内容`
+    case 'clean': return `零失误完成「${name}」`
     case 'level': return `「${name}」最高记录达到 ${cond.threshold} 位/关`
     case 'moves': return `「${name}」步数接近最优`
     case 'accuracy':
@@ -44,7 +47,8 @@ function repeatDesc(name, cond) {
   if (!cond) cond = { type: 'accuracy', threshold: 90 }
   switch (cond.type) {
     case 'coin': return `以 ≥${cond.threshold} 金币/轮完成「${name}」5 次`
-    case 'complete': return `在限时内完成「${name}」5 次`
+    case 'complete': return `完成「${name}」全部内容 5 次`
+    case 'clean': return `零失误完成「${name}」5 次`
     case 'level': return `「${name}」达到 ${cond.threshold} 位/关 5 次`
     case 'moves': return `高效完成「${name}」5 次`
     case 'accuracy':
@@ -62,13 +66,17 @@ export const PERFECT_CONFIG = {
   'timed-match':         { hard: 10,   type: 'complete' },
   'stroop':              { hard: 24,   type: 'accuracy' },
   'go-no-go':            { hard: 1000, type: 'accuracy' },
-  'stop-signal':         { hard: 150,  type: 'accuracy' },
+  'stop-signal':         { hard: 350,  type: 'accuracy' },
+  'flanker':             { hard: 1000, type: 'accuracy' },
   'brain-shift':         { hard: 1000, type: 'accuracy' },
   'dccs':                { hard: 4,    type: 'accuracy' },
+  'trail-making':        { hard: 9,    type: 'clean', field: 'wrongClicks' },
+  'task-switch':         { hard: 1500, type: 'accuracy' },
+  'serial-addition':     { hard: 20,   type: 'accuracy' },
   'schulte-grid':        { hard: 7,    type: 'clean', field: 'wrongClicks' },
   'visual-search':       { hard: 7,    type: 'accuracy' },
   'tower-of-hanoi':      { hard: 6,    type: 'optimal' },
-  'risk-decision':       { hard: 20,   type: 'clean', field: 'riskyFails' },
+  'risk-decision':       { hard: 20,   type: 'coin', threshold: 15, field: 'riskyFails' },
 }
 
 // 判定是否为"最高难度零失误"局
@@ -80,13 +88,17 @@ export function isPerfectRun(record, gameId) {
     case 'level':
       return record.score >= (cfg.threshold || 6)
     case 'moves':
-      return typeof record.moves === 'number' && record.moves === record.total * 2
+      return typeof record.moves === 'number' && record.moves === record.total
     case 'complete':
       return record.score === record.total
     case 'clean':
       return record.score === record.total && !record[cfg.field]
     case 'optimal':
       return typeof record.moves === 'number' && record.moves === Math.pow(2, cfg.hard) - 1
+    case 'coin':
+      return record.total > 0
+        && (record.score / record.total) >= (cfg.threshold || 15)
+        && !(cfg.field && record[cfg.field])
     case 'accuracy':
     default:
       return record.score === record.total

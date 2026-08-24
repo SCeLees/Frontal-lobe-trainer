@@ -148,12 +148,12 @@ function ringColor(size) {
 function checkWin() {
   if (pegs.value[2].length === numRings.value) {
     state.value = 'finished'
-    sounds.win()
     const acc = Math.round((optimalMoves.value / Math.max(1, moves.value)) * 100)
     emit('done', {
       score: moves.value,
       total: optimalMoves.value,
       accuracy: acc,
+      moves: moves.value,
       difficulty: props.difficulty,
     })
   }
